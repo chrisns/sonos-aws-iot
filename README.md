@@ -1,1 +1,1 @@
-# sonos-mqtt
+# sonos-aws-iot

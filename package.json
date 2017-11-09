@@ -1,0 +1,27 @@
+{
+  "name": "sonos-aws-iot",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha .",
+    "start": "node index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chrisns/sonos-aws-iot.git"
+  },
+  "author": "Chris Nesbitt-Smith",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/chrisns/sonos-aws-iot/issues"
+  },
+  "homepage": "https://github.com/chrisns/sonos-aws-iot#readme",
+  "dependencies": {
+    "mqtt": "^2.12.1",
+    "node-static": "^0.7.9",
+    "sonos-discovery": "github:jishi/node-sonos-discovery",
+    "sonos-http-api": "github:jishi/node-sonos-http-api"
+  },
+  "devDependencies": {}
+}
