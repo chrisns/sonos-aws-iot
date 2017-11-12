@@ -1,0 +1,22 @@
+pipeline:
+
+  build:
+    image: node
+    commands:
+      - npm --silent install
+
+  docker:
+    image: plugins/docker
+    repo: chrisns/sonos-aws-iot
+    tags:
+      - latest
+      - ${DRONE_BUILD_NUMBER}
+    secrets: [ docker_username, docker_password ]
+
+  deploy:
+    image: docker
+    secrets: [ AWS_ACCESS_KEY, AWS_SECRET_ACCESS_KEY, AWS_IOT_ENDPOINT_HOST, MQTT_PREFIX ]
+    commands:
+      - docker deploy --compose-file docker-compose.yml sonos-iot
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock

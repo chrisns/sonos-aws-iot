@@ -5,16 +5,16 @@ const nodeStatic = require('node-static')
 const http = require('http')
 const requireDir = require('sonos-http-api/lib/helpers/require-dir')
 const path = require('path')
+const awsIot = require('aws-iot-device-sdk')
 
-var awsIot = require('aws-iot-device-sdk');
+const MQTT_PREFIX = process.env.MQTT_PREFIX
 
-var device = awsIot.device({
-// keyPath: <YourPrivateKeyPath>,
-//   certPath: <YourCertificatePath>,
-//     caPath: <YourRootCACertificatePath>,
-//       clientId: <YourUniqueClientIdentifier>,
-//         host: <YourCustomEndpoint>
-});
+const device = awsIot.device({
+  accessKeyId: process.env.AWS_ACCESS_KEY,
+  secretKey: process.env.AWS_SECRET_ACCESS_KEY,
+  host: process.env.AWS_IOT_ENDPOINT_HOST,
+  protocol: "wss",
+})
 
 /*thing shadow stuff
 var thingShadows = awsIot.thingShadow({
@@ -23,15 +23,15 @@ var thingShadows = awsIot.thingShadow({
   //     caPath: <YourRootCACertificatePath>,
   //       clientId: <YourUniqueClientIdentifier>,
   //         host: <YourCustomEndpoint>
-});
+})
 
 thingShadows.on('connect', () =>
   thingShadows.register('sonos', {}, () => {
     if (thingShadows.update('RGBLedLamp', {"state": {"desired": {"red": 123}}}) === null) {
-      console.log('update shadow failed, operation still in progress');
+      console.log('update shadow failed, operation still in progress')
     }
   })
-);
+)
 
 thingShadows.on('status', (thingName, stat, clientToken, stateObject) =>
   console.log('received ' + stat + ' on ' + thingName + ': ' + JSON.stringify(stateObject)))
@@ -40,14 +40,15 @@ thingShadows.on('delta', (thingName, stateObject) =>
   console.log('received delta on ' + thingName + ': ' + JSON.stringify(stateObject)))
 
 thingShadows.on('timeout', (thingName, clientToken) =>
-  console.log('received timeout on ' + thingName + ' with token: ' + clientToken));
+  console.log('received timeout on ' + thingName + ' with token: ' + clientToken))
 */
 
 device.on('connect', () => console.log("aws - connected"))
+device.on('connect', () => device.subscribe(`${MQTT_PREFIX}#`, console.log))
 
 device.on('error', (error) => console.error('aws - error', error))
 
-device.on('close', () => console.error("aws - connection close"))
+device.on('close', (err) => console.error("aws - connection close", err))
 
 device.on('offline', () => console.log("aws - offline"))
 
@@ -96,8 +97,9 @@ function SonosMQTTAPI(discovery, settings) {
 
   // this handles registering of all actions
   this.registerAction = (action, handler) => {
-    device.subscribe(`${MQTT_PREFIX}${action}`, {qos: 1})
-    device.subscribe(`${MQTT_PREFIX}${action}/#`, {qos: 1})
+    console.log(action)
+    // device.subscribe(`${MQTT_PREFIX}${action}`, console.log)
+    // device.subscribe(`${MQTT_PREFIX}${action}/#`, console.log)
     actions[action] = handler
   }
 
@@ -111,6 +113,8 @@ function SonosMQTTAPI(discovery, settings) {
       console.error('System has yet to be discovered')
       return
     }
+    if (topic === `${MQTT_PREFIX}out`) // loopback
+      return
 
     const params = topic.replace(MQTT_PREFIX, "").split('/')
     const opt = {}
@@ -133,16 +137,14 @@ function SonosMQTTAPI(discovery, settings) {
 
     handleAction(opt)
       .then((response) => {
-        if (!response || response.constructor.name === 'IncomingMessage') {
-          response = {status: 'success'}
-        } else if (Array.isArray(response) && response.length > 0 && response[0].constructor.name === 'IncomingMessage') {
+        if ((!response || response.constructor.name === 'IncomingMessage') || (Array.isArray(response) && response.length > 0 && response[0].constructor.name === 'IncomingMessage')) {
           response = {status: 'success'}
         }
-        // sendResponse(response)
-      }).catch((error) => {
-      console.error(error)
-      // sendResponse({status: 'error', error: error.message, stack: error.stack})
-    })
+        sendResponse(response)
+      })
+      .catch(error =>
+        sendResponse({status: 'error', error: error.message, stack: error.stack})
+      )
 
   }
 
@@ -159,10 +161,10 @@ function SonosMQTTAPI(discovery, settings) {
 
 }
 
-// const sendResponse = body => {
-//   client.publish(`${MQTT_PREFIX}out`, JSON.stringify(body), {qos: 1})
-//   console.log(body)
-// }
+const sendResponse = body => {
+  device.publish(`${MQTT_PREFIX}out`, JSON.stringify(body))
+  console.log(body)
+}
 
 const api = new SonosMQTTAPI(discovery, settings)
 
