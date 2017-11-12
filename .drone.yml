@@ -20,3 +20,5 @@ pipeline:
       - docker deploy --compose-file docker-compose.yml sonos-iot
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+    when:
+      branch: master
