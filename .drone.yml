@@ -1,10 +1,5 @@
 pipeline:
 
-  build:
-    image: node
-    commands:
-      - npm --silent install
-
   docker:
     image: plugins/docker
     repo: chrisns/sonos-aws-iot
