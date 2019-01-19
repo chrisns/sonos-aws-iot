@@ -1,15 +1,18 @@
-FROM node:alpine
-
-RUN apk --no-cache add wget
-RUN mkdir /app
+FROM node:alpine as builder
+RUN apk add --no-cache git
 WORKDIR /app
-COPY package.json package-lock.json ./
+COPY package.json .
+COPY package-lock.json .
 RUN npm i
-RUN chown -R node ./node_modules/sonos-http-api
 RUN npm audit fix
-COPY index.js ./
 
-CMD npm start
+FROM node:alpine
+RUN apk add --no-cache wget
+COPY --from=builder /app /app
+WORKDIR /app 
+COPY index.js .
+RUN chown -R node ./node_modules/sonos-http-api
 USER node
+CMD npm start
 
 HEALTHCHECK CMD wget -q localhost:5005 -O /dev/null || exit 1
