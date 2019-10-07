@@ -19,7 +19,7 @@
   "homepage": "https://github.com/chrisns/sonos-aws-iot#readme",
   "dependencies": {
     "aws-iot-device-sdk": "^2.1.0",
-    "node-static": "^0.7.9",
+    "node-static": "^0.7.11",
     "sonos-discovery": "github:jishi/node-sonos-discovery",
     "sonos-http-api": "github:jishi/node-sonos-http-api"
   },
