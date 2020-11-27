@@ -4,7 +4,6 @@ WORKDIR /app
 COPY package.json .
 COPY package-lock.json .
 RUN npm i
-RUN npm audit fix
 
 FROM node:alpine
 RUN apk add --no-cache wget
