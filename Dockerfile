@@ -6,6 +6,7 @@ COPY package-lock.json .
 RUN npm i
 
 FROM node:alpine
+LABEL org.opencontainers.image.source https://github.com/chrisns/sonos-aws-iot
 RUN apk add --no-cache wget
 COPY --from=builder /app /app
 WORKDIR /app 
