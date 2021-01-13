@@ -21,7 +21,6 @@
     "aws-iot-device-sdk": "^2.2.6",
     "node-static": "^0.7.11",
     "sonos-discovery": "github:jishi/node-sonos-discovery",
-    "sonos-http-api": "github:jishi/node-sonos-http-api"
-  },
-  "devDependencies": {}
+    "sonos-http-api": "github:chrisns/node-sonos-http-api#playbar-linein"
+  }
 }
