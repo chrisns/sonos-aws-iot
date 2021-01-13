@@ -6,6 +6,7 @@ const http = require('http')
 const requireDir = require('sonos-http-api/lib/helpers/require-dir')
 const path = require('path')
 const awsIot = require('aws-iot-device-sdk')
+const fileServer = new nodeStatic.Server(settings.webroot);
 
 const MQTT_PREFIX = process.env.MQTT_PREFIX
 
@@ -15,33 +16,6 @@ const device = awsIot.device({
   host: process.env.AWS_IOT_ENDPOINT_HOST,
   protocol: "wss",
 })
-
-/*thing shadow stuff
-var thingShadows = awsIot.thingShadow({
-  // keyPath: <YourPrivateKeyPath>,
-  //   certPath: <YourCertificatePath>,
-  //     caPath: <YourRootCACertificatePath>,
-  //       clientId: <YourUniqueClientIdentifier>,
-  //         host: <YourCustomEndpoint>
-})
-
-thingShadows.on('connect', () =>
-  thingShadows.register('sonos', {}, () => {
-    if (thingShadows.update('RGBLedLamp', {"state": {"desired": {"red": 123}}}) === null) {
-      console.log('update shadow failed, operation still in progress')
-    }
-  })
-)
-
-thingShadows.on('status', (thingName, stat, clientToken, stateObject) =>
-  console.log('received ' + stat + ' on ' + thingName + ': ' + JSON.stringify(stateObject)))
-
-thingShadows.on('delta', (thingName, stateObject) =>
-  console.log('received delta on ' + thingName + ': ' + JSON.stringify(stateObject)))
-
-thingShadows.on('timeout', (thingName, clientToken) =>
-  console.log('received timeout on ' + thingName + ' with token: ' + clientToken))
-*/
 
 device.on('connect', () => console.log("aws - connected"))
 device.on('connect', () => device.subscribe(`${MQTT_PREFIX}#`, console.log))
@@ -66,40 +40,11 @@ function SonosMQTTAPI(discovery, settings) {
 
   this.discovery = discovery
 
-  /* TODO: migrate to thing shadows
-  const player_related_events = [
-    'group-mute',
-    'transport-state',
-    'group-volume',
-    'volume-change',
-    'mute-change',
-  ]
 
-  const system_related_events = [
-    'list-change',
-    'initialized',
-    'topology-change',
-  ]
-
-  player_related_events.forEach(action =>
-    discovery.on(action, player => {
-      let topic = `${MQTT_PREFIX}${player.roomName.toLowerCase().replace(" ", "-")}/${action}`
-      client.publish(topic.toLowerCase(), JSON.stringify(player))
-    })
-  )
-  system_related_events.forEach(action =>
-    discovery.on(action, system => {
-      let topic = `${MQTT_PREFIX}system/${action}`
-      client.publish(topic.toLowerCase(), JSON.stringify(system))
-    })
-  )
-  */
 
   // this handles registering of all actions
   this.registerAction = (action, handler) => {
     console.log(action)
-    // device.subscribe(`${MQTT_PREFIX}${action}`, console.log)
-    // device.subscribe(`${MQTT_PREFIX}${action}/#`, console.log)
     actions[action] = handler
   }
 
@@ -138,12 +83,12 @@ function SonosMQTTAPI(discovery, settings) {
     handleAction(opt)
       .then((response) => {
         if ((!response || response.constructor.name === 'IncomingMessage') || (Array.isArray(response) && response.length > 0 && response[0].constructor.name === 'IncomingMessage')) {
-          response = {status: 'success'}
+          response = { status: 'success' }
         }
         sendResponse(response)
       })
       .catch(error =>
-        sendResponse({status: 'error', error: error.message, stack: error.stack})
+        sendResponse({ status: 'error', error: error.message, stack: error.stack })
       )
 
   }
@@ -152,7 +97,7 @@ function SonosMQTTAPI(discovery, settings) {
     let player = options.player
 
     if (!actions[options.action]) {
-      return Promise.reject({error: 'action \'' + options.action + '\' not found'})
+      return Promise.reject({ error: 'action \'' + options.action + '\' not found' })
     }
 
     return actions[options.action](player, options.values)
@@ -167,14 +112,33 @@ const sendResponse = body => {
 }
 
 const api = new SonosMQTTAPI(discovery, settings)
-
-const file = new nodeStatic.Server(settings.webroot)
-
-http.createServer((request, response) =>
-  request.addListener('end', () => file.serve(request, response)
-  ).resume()
-).listen(settings.port)
+const httpapi = new SonosHttpAPI(discovery, settings);
 
 device.on('message', api.requestHandler)
 
 module.exports = api
+
+const httprequestHandler = (req, res) =>
+  req.addListener('end', () =>
+    fileServer.serve(req, res, err => {
+
+      if (!err) {
+        return;
+      }
+
+      res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      if (req.headers['access-control-request-headers']) {
+        res.setHeader('Access-Control-Allow-Headers', req.headers['access-control-request-headers']);
+      }
+
+      if (req.method === 'GET') {
+        httpapi.requestHandler(req, res);
+      }
+    })
+  ).resume()
+
+const server = http.createServer(httprequestHandler);
+server.listen(settings.port, settings.ip, function () {
+  console.log('http server listening on', settings.ip, 'port', settings.port);
+});
