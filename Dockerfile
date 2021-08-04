@@ -1,11 +1,11 @@
-FROM node:16.4.2-alpine as builder
+FROM node:16.6.1-alpine as builder
 RUN apk add --no-cache git
 WORKDIR /app
 COPY package.json .
 COPY package-lock.json .
 RUN npm i
 
-FROM node:16.4.2-alpine
+FROM node:16.6.1-alpine
 LABEL org.opencontainers.image.source https://github.com/chrisns/sonos-aws-iot
 RUN apk add --no-cache wget
 COPY --from=builder /app /app
